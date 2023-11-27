@@ -12,6 +12,7 @@
 #include "ns3/timer.h"
 #include "ns3/packet.h"
 #include "ns3/ipv4-header.h"
+// #include "beacon-info.h"
 
 #include "distance-table.h"
 
@@ -43,7 +44,7 @@ namespace ns3 {
       virtual void NotifyInterfaceDown (uint32_t interface);
       virtual void NotifyAddAddress (uint32_t interface, Ipv4InterfaceAddress address);
       virtual void NotifyRemoveAddress (uint32_t interface, Ipv4InterfaceAddress address);
-      virtual void PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit unit) const;
+      virtual void PrintRoutingTable (Ptr<OutputStreamWrapper> stream, ns3::Time::Unit unit) const;
 
       int64_t AssignStreams(int64_t stream);
 
@@ -56,7 +57,8 @@ namespace ns3 {
       bool  IsBeacon()                   { return m_isBeacon;}
 
       void  PrintDistances(Ptr<OutputStreamWrapper> stream, Ptr<Node> node) const;
-
+      // std::map<Ipv4Address, BeaconInfo> GetDistanceTable(int nodeIndex) const;
+     ns3::dvhop::DistanceTable GetDistanceTable() const;
     private:
       //Start protocol operation
       void        Start    ();

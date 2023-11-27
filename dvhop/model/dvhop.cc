@@ -32,7 +32,7 @@ namespace ns3 {
           .AddConstructor<RoutingProtocol> ()                                  //Set of accessible constructors
           .AddAttribute ("HelloInterval",                                      //Bind a value to a string
                          "HELLO messages emission interval.",                  // with this description
-                         TimeValue (Seconds (1)),                              // default value
+                         TimeValue (Seconds (5)),                              // default value
                          MakeTimeAccessor (&RoutingProtocol::HelloInterval),   // accessed through
                          MakeTimeChecker ())
           .AddAttribute ("UniformRv",
@@ -137,7 +137,7 @@ namespace ns3 {
     RoutingProtocol::RouteInput (Ptr<const Packet> p, const Ipv4Header &header, Ptr<const NetDevice> idev, UnicastForwardCallback ufcb, MulticastForwardCallback mfcb, LocalDeliverCallback ldcb, ErrorCallback errcb)
     {
       NS_LOG_FUNCTION ("Packet received: " << p->GetUid () << header.GetDestination () << idev->GetAddress ());
-
+      NS_LOG_DEBUG("IN reviece area");
       if(m_socketAddresses.empty ())
         {//No interface is listening
           NS_LOG_LOGIC ("No DVHop interfaces");
@@ -232,6 +232,7 @@ namespace ns3 {
     void
     RoutingProtocol::NotifyInterfaceUp (uint32_t interface)
     {
+      NS_LOG_DEBUG("In NofifInterfaceUp");
       NS_LOG_FUNCTION (this << m_ipv4->GetAddress (interface, 0).GetLocal ());
       Ptr<Ipv4L3Protocol> l3 = m_ipv4->GetObject<Ipv4L3Protocol> ();
       if (l3->GetNAddresses (interface) > 1)
@@ -246,12 +247,14 @@ namespace ns3 {
       Ptr<Socket> socket = Socket::CreateSocket (GetObject<Node> (),
                                                  UdpSocketFactory::GetTypeId ());
       NS_ASSERT (socket != 0);
+      
       socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvDvhop, this));
       socket->BindToNetDevice (l3->GetNetDevice (interface));
       socket->Bind (InetSocketAddress (Ipv4Address::GetAny (), DVHOP_PORT));
       socket->SetAllowBroadcast (true);
       socket->SetAttribute ("IpTtl", UintegerValue (1));
       m_socketAddresses.insert (std::make_pair (socket, iface));
+      NS_LOG_DEBUG("Socket = " << socket);
 
     }
 
@@ -278,8 +281,10 @@ namespace ns3 {
     RoutingProtocol::NotifyAddAddress (uint32_t interface, Ipv4InterfaceAddress address)
     {
       NS_LOG_FUNCTION (this << " interface " << interface << " address " << address);
+      NS_LOG_DEBUG("IN NotifyAddAddress, interface = " << interface);
       Ptr<Ipv4L3Protocol> l3 = m_ipv4->GetObject<Ipv4L3Protocol> ();
       if (!l3->IsUp (interface))
+        NS_LOG_DEBUG("Leaving NotifyAddAddr at first if");
         return;
       if (l3->GetNAddresses (interface) == 1)
         {
@@ -288,6 +293,7 @@ namespace ns3 {
           if (!socket)
             {
               if (iface.GetLocal () == Ipv4Address ("127.0.0.1"))
+                NS_LOG_DEBUG("Leaving NotifyAddAddr at GetLocal if");
                 return;
               // Create a socket to listen only on this interface
               Ptr<Socket> socket = Socket::CreateSocket (GetObject<Node> (),
@@ -299,13 +305,14 @@ namespace ns3 {
               socket->Bind (InetSocketAddress (Ipv4Address::GetAny (), DVHOP_PORT));
               socket->SetAllowBroadcast (true);
               m_socketAddresses.insert (std::make_pair (socket, iface));
+              NS_LOG_DEBUG("Socket = " << socket);
             }
         }
       else
         {
           NS_LOG_LOGIC ("DV-Hop does not work with more then one address per each interface. Ignore added address");
         }
-
+      NS_LOG_DEBUG("Leaving NotifyAddAddr");
     }
 
     void
@@ -345,9 +352,9 @@ namespace ns3 {
 
 
     void
-    RoutingProtocol::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, Time::Unit unit) const
+    RoutingProtocol::PrintRoutingTable (Ptr<OutputStreamWrapper> stream, ns3::Time::Unit unit) const
     {
-      *stream->GetStream() << "DVHopRoutingProtocol::PrintRoutingTable not implemented" << std::endl;
+      *stream->GetStream () << "(" << m_ipv4->GetObject<Node>()->GetId() << " - Not implemented yet";
     }
 
 
@@ -359,8 +366,20 @@ namespace ns3 {
     }
 
 
+// std::map<Ipv4Address, ns3::dvhop::BeaconInfo> RoutingProtocol::GetDistanceTable() const {
+//   int nodeId = m_ipv4->GetObject<Node>()->GetId();
+//   NS_LOG_FUNCTION(this << nodeId);
 
+//   Ptr<DVHopExample> dvhopExample = GetObject<DVHopExample>();
 
+//   // Call the GetDistanceTable function from DVHopExample
+//   return dvhopExample->GetDistanceTable(nodeId);
+// }
+
+ns3::dvhop::DistanceTable RoutingProtocol::GetDistanceTable() const
+    {
+        return m_disTable.GetDistanceTable();
+    }
 
 
 
@@ -379,7 +398,9 @@ namespace ns3 {
     void
     RoutingProtocol::Start ()
     {
-      NS_LOG_FUNCTION (this);
+      
+      // NS_LOG_FUNCTION (this);
+      // RoutingProtocol::Start(node);
       //Initialize timers and extra behaviour not initialized in the constructor
     }
 
@@ -492,6 +513,7 @@ namespace ns3 {
     void
     RoutingProtocol::RecvDvhop (Ptr<Socket> socket)
     {
+      NS_LOG_DEBUG("In RecvDvhop");
       Address sourceAddress;
       Ptr<Packet> packet = socket->RecvFrom (sourceAddress); //Read a single packet from 'socket' and retrieve the 'sourceAddress'
 
@@ -507,10 +529,14 @@ namespace ns3 {
       packet->RemoveHeader (fHeader);
       NS_LOG_DEBUG ("Update the entry for: " << fHeader.GetBeaconAddress ());
       UpdateHopsTo (fHeader.GetBeaconAddress (), fHeader.GetHopCount () + 1, fHeader.GetXPosition (), fHeader.GetYPosition ());
+      // SendDvhopAck(socket, sender);
 
 
 
     }
+
+
+    
 
     Ptr<Socket>
     RoutingProtocol::FindSocketWithInterfaceAddress (Ipv4InterfaceAddress addr) const

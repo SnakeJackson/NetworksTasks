@@ -26,6 +26,8 @@ namespace ns3
       void SetPosition(Position p)    { m_pos  = p;     }
       void SetTime    ( Time t )      { m_updatedAt = t;}
 
+      
+
     private:
       uint16_t m_hops;
       Position m_pos;
@@ -79,6 +81,9 @@ namespace ns3
        * @return A vector containing the known beacons
        */
       std::vector<Ipv4Address> GetKnownBeacons() const;
+
+      std::map<Ipv4Address, BeaconInfo> Inner() const;
+      ns3::dvhop::DistanceTable GetDistanceTable() const;
 
       /**
        * @brief Print Print this DistanceTable to the output stream provided

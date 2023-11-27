@@ -18,6 +18,7 @@ namespace ns3
       std::map<Ipv4Address, BeaconInfo>::const_iterator it = m_table.find (beacon);
       if( it != m_table.end ())
         {
+          // std::cout << "hops " << ((BeaconInfo)it->second).GetHops () << "\n";
           return ((BeaconInfo)it->second).GetHops ();
         }
 
@@ -33,7 +34,7 @@ namespace ns3
           return ((BeaconInfo)it->second).GetPosition ();
         }
 
-      else return std::make_pair(-1.0,-1.0);
+      else return std::pair<double,double>(-1.0,-1.0);
     }
 
 
@@ -52,9 +53,9 @@ namespace ns3
       else
         {
           info.SetHops (hops);
-          info.SetPosition (std::make_pair(xPos, yPos));
+          info.SetPosition (std::pair<double,double>(xPos, yPos));
           info.SetTime (Simulator::Now ());
-          m_table.insert (std::make_pair(beacon, info));
+          m_table.insert (std::pair<Ipv4Address, BeaconInfo>(beacon, info));
         }
     }
 
@@ -92,6 +93,18 @@ namespace ns3
           *os->GetStream () <<  j->first << "\t" << j->second;
         }
     }
+
+
+    std::map<Ipv4Address, BeaconInfo> DistanceTable::Inner() const
+      {
+        return m_table;
+      }
+
+    ns3::dvhop::DistanceTable DistanceTable::GetDistanceTable() const
+      {
+       return *this;
+      }
+
 
 
     std::ostream &
