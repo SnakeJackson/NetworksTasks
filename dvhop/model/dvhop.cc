@@ -52,6 +52,7 @@ namespace ns3 {
       HelloInterval (Seconds (1)),         //Send HELLO each second
       m_htimer (Timer::CANCEL_ON_DESTROY), //Set timer for HELLO
       m_isBeacon(false),
+      m_isDead(false),
       m_xPosition(12.56),
       m_yPosition(468.5),
       m_seqNo (0)
@@ -284,17 +285,21 @@ namespace ns3 {
       NS_LOG_DEBUG("IN NotifyAddAddress, interface = " << interface);
       Ptr<Ipv4L3Protocol> l3 = m_ipv4->GetObject<Ipv4L3Protocol> ();
       if (!l3->IsUp (interface))
+      {
         NS_LOG_DEBUG("Leaving NotifyAddAddr at first if");
         return;
+      }
       if (l3->GetNAddresses (interface) == 1)
         {
           Ipv4InterfaceAddress iface = l3->GetAddress (interface, 0);
           Ptr<Socket> socket = FindSocketWithInterfaceAddress (iface);
           if (!socket)
             {
-              if (iface.GetLocal () == Ipv4Address ("127.0.0.1"))
+              if (iface.GetLocal () == Ipv4Address ("127.0.0.1")) 
+              {
                 NS_LOG_DEBUG("Leaving NotifyAddAddr at GetLocal if");
                 return;
+              }
               // Create a socket to listen only on this interface
               Ptr<Socket> socket = Socket::CreateSocket (GetObject<Node> (),
                                                          UdpSocketFactory::GetTypeId ());
@@ -408,12 +413,15 @@ ns3::dvhop::DistanceTable RoutingProtocol::GetDistanceTable() const
     void
     RoutingProtocol::HelloTimerExpire ()
     {
-      NS_LOG_DEBUG ("HelloTimer expired");
+      if(!m_isDead)
+      {
+        NS_LOG_DEBUG ("HelloTimer expired");
 
-      SendHello ();
+        SendHello ();
 
-      m_htimer.Cancel ();
-      m_htimer.Schedule (RoutingProtocol::HelloInterval);
+        m_htimer.Cancel ();
+        m_htimer.Schedule (RoutingProtocol::HelloInterval);
+      }
     }
 
     bool
@@ -513,26 +521,26 @@ ns3::dvhop::DistanceTable RoutingProtocol::GetDistanceTable() const
     void
     RoutingProtocol::RecvDvhop (Ptr<Socket> socket)
     {
-      NS_LOG_DEBUG("In RecvDvhop");
-      Address sourceAddress;
-      Ptr<Packet> packet = socket->RecvFrom (sourceAddress); //Read a single packet from 'socket' and retrieve the 'sourceAddress'
+      if(!m_isDead)
+      {
+        NS_LOG_DEBUG("In RecvDvhop");
+        Address sourceAddress;
+        Ptr<Packet> packet = socket->RecvFrom (sourceAddress); //Read a single packet from 'socket' and retrieve the 'sourceAddress'
 
-      InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom (sourceAddress);
-      Ipv4Address sender = inetSourceAddr.GetIpv4 ();
-      Ipv4Address receiver = m_socketAddresses[socket].GetLocal ();
+        InetSocketAddress inetSourceAddr = InetSocketAddress::ConvertFrom (sourceAddress);
+        Ipv4Address sender = inetSourceAddr.GetIpv4 ();
+        Ipv4Address receiver = m_socketAddresses[socket].GetLocal ();
 
-      NS_LOG_DEBUG ("sender:           " << sender);
-      NS_LOG_DEBUG ("receiver:         " << receiver);
-
-
-      FloodingHeader fHeader;
-      packet->RemoveHeader (fHeader);
-      NS_LOG_DEBUG ("Update the entry for: " << fHeader.GetBeaconAddress ());
-      UpdateHopsTo (fHeader.GetBeaconAddress (), fHeader.GetHopCount () + 1, fHeader.GetXPosition (), fHeader.GetYPosition ());
-      // SendDvhopAck(socket, sender);
+        NS_LOG_DEBUG ("sender:           " << sender);
+        NS_LOG_DEBUG ("receiver:         " << receiver);
 
 
-
+        FloodingHeader fHeader;
+        packet->RemoveHeader (fHeader);
+        NS_LOG_DEBUG ("Update the entry for: " << fHeader.GetBeaconAddress ());
+        UpdateHopsTo (fHeader.GetBeaconAddress (), fHeader.GetHopCount () + 1, fHeader.GetXPosition (), fHeader.GetYPosition ());
+        // SendDvhopAck(socket, sender);
+      }
     }
 
 
@@ -566,8 +574,6 @@ ns3::dvhop::DistanceTable RoutingProtocol::GetDistanceTable() const
       if( oldHops > newHops || oldHops == 0) //Update only when a shortest path is found
         m_disTable.AddBeacon (beacon, newHops, x, y);
     }
-
-
 
 
   }

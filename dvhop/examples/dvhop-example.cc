@@ -51,8 +51,8 @@ point trilateration(point point1, point point2, point point3, double r1, double 
     double x2 = point2.x, y2 = point2.y;
     double x3 = point3.x, y3 = point3.y;
 
-    double d1 = (r1 * r1) - (r2 * r2) - (x1 * x1) - (y1 * y1) + (x2 * x2) + (y2 * y2);
-    double d2 = (r2 * r2) - (r3 * r3) - (x2 * x2) - (y2 * y2) + (x3 * x3) + (y3 * y3);
+    double d1 = r1 * r1 - r2 * r2 - x1 * x1 - y1 * y1 + x2 * x2 + y2 * y2;
+    double d2 = r2 * r2 - r3 * r3 - x2 * x2 - y2 * y2 + x3 * x3 + y3 * y3;
 
     // calculate the coordinates using trilateration formula
     double a = 2 * (x2 - x1);
@@ -60,7 +60,7 @@ point trilateration(point point1, point point2, point point3, double r1, double 
     double c = 2 * (x3 - x2);
     double d = 2 * (y3 - y2);
 
-    double det = (a * d) - (b * c);
+    double det = a * d - b * c;
 
     if (det == 0) {
         // The points are collinear, trilateration is not possible
@@ -142,7 +142,6 @@ private:
   void CreateBeacons();
   void CalculateHopSize();
   void CalculateCoordinates();
-
 };
 
 void testPrint(){std::cout << "TESTING----------------------------------------" << std::endl;}
@@ -187,13 +186,13 @@ int main (int argc, char **argv)
 
 //-----------------------------------------------------------------------------
 DVHopExample::DVHopExample () :
-  size (500),
-  step (20),
-  totalTime (20),
+  size (1000),
+  step (100),
+  totalTime (10),
   pcap (true),
   printRoutes (true),
-  randomSeed (true),
-  beaconPercent (.1)
+  randomSeed (false),
+  beaconPercent (.2)
 {
 }
 
@@ -223,6 +222,17 @@ DVHopExample::Configure (int argc, char **argv)
   return true;
 }
 
+// Handler for node death
+void
+KillNode(int node_num, double death_time, Ptr<dvhop::RoutingProtocol> node_dvhop) {
+  // Kill node by moving it far away
+  // std::cout << "Killed node " << node_num << " at " << death_time << std::endl;
+  // Ptr<ConstantPositionMobilityModel> mob = node_ptr->GetObject<ConstantPositionMobilityModel>();
+  // Vector new_position = Vector(0.0, 20000.0 + 1000*node_num, 0.0);
+  // mob->SetPosition(new_position);
+  node_dvhop->KillNode();
+}
+
 void
 DVHopExample::Run ()
 {
@@ -246,6 +256,26 @@ DVHopExample::Run ()
     node = nodes.Get(nodeitr);
     anim.UpdateNodeColor(node->GetId(), 0, 0, 255);
     ++nodeitr;
+  }
+  
+  // Setup random number generator for Node Death times
+  Ptr<UniformRandomVariable> time_generator = CreateObject<UniformRandomVariable>();
+  time_generator->SetAttribute("Min", DoubleValue(0));
+  time_generator->SetAttribute("Max", DoubleValue(totalTime));
+
+  double death_time;
+  Ptr<ConstantPositionMobilityModel> mob;
+  Ptr<Node> current_node;
+  // Iterate through each node to schedule a death time
+  for(uint32_t node_num = 0; node_num < size; node_num++)
+  {
+    current_node = nodes.Get(node_num);
+    // mob = nodes.Get(node_num)->GetObject<ConstantPositionMobilityModel>();
+    Ptr<Ipv4RoutingProtocol> nodeProto = current_node -> GetObject<Ipv4>() -> GetRoutingProtocol ();
+	  Ptr<dvhop::RoutingProtocol> node_dvhop = DynamicCast<dvhop::RoutingProtocol> (nodeProto);
+    death_time = time_generator->GetValue();
+    // Simulator::Schedule(Seconds(death_time), &KillNode, node_num, death_time, current_node);
+    Simulator::Schedule(Seconds(death_time), &KillNode, node_num, death_time, node_dvhop);
   }
 
   Simulator::Run ();
@@ -276,8 +306,8 @@ DVHopExample::CreateNodes ()
 
   Ptr<UniformRandomVariable> xs = CreateObject<UniformRandomVariable> ();
   Ptr<UniformRandomVariable> ys = CreateObject<UniformRandomVariable> ();
-  xs->SetAttribute("Max", DoubleValue(500));
-  ys->SetAttribute("Max", DoubleValue(500));
+  xs->SetAttribute("Max", DoubleValue(100));
+  ys->SetAttribute("Max", DoubleValue(100));
 
   Ptr<ns3::RandomRectanglePositionAllocator> allocator = CreateObject<ns3::RandomRectanglePositionAllocator> ();
   allocator -> SetX(xs);
@@ -301,7 +331,6 @@ if(size > 30){
 	Ptr<Ipv4RoutingProtocol> proto = nodes.Get (x)->GetObject<Ipv4>()->GetRoutingProtocol ();
  	Ptr<dvhop::RoutingProtocol> dvhop = DynamicCast<dvhop::RoutingProtocol> (proto);
 	dvhop->SetIsBeacon(true);
-
 
   //Tell dvhop algorithim real location
   Ptr<Node> node = *i;
@@ -385,7 +414,7 @@ void DVHopExample::CalculateHopSize (){
 
 
 	if(inner.size() >= 3){
-    // std::cout << "In inner.size if\n";
+
 		auto a = inner.begin();
       		double xa = a->second.GetPosition().first;
       		double ya = a->second.GetPosition().second;
@@ -393,7 +422,6 @@ void DVHopExample::CalculateHopSize (){
       		// hops size * hops to node
 
       		double ra = hopsize[(a -> first).Get() - 167772161] * a->second.GetHops();
-          std::cout << "Hops: " << a->second.GetHops() << "\n";
 
       		auto b = inner.begin();
 		b++;

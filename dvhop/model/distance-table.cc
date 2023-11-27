@@ -18,7 +18,6 @@ namespace ns3
       std::map<Ipv4Address, BeaconInfo>::const_iterator it = m_table.find (beacon);
       if( it != m_table.end ())
         {
-          // std::cout << "hops " << ((BeaconInfo)it->second).GetHops () << "\n";
           return ((BeaconInfo)it->second).GetHops ();
         }
 

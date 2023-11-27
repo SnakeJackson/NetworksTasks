@@ -57,6 +57,9 @@ namespace ns3 {
       bool  IsBeacon()                   { return m_isBeacon;}
 
       void  PrintDistances(Ptr<OutputStreamWrapper> stream, Ptr<Node> node) const;
+
+      //Kill Node function
+      void KillNode() { m_isDead = true; }
       // std::map<Ipv4Address, BeaconInfo> GetDistanceTable(int nodeIndex) const;
      ns3::dvhop::DistanceTable GetDistanceTable() const;
     private:
@@ -82,6 +85,9 @@ namespace ns3 {
 
       //Boolean to identify if this node acts as a Beacon
       bool m_isBeacon;
+
+      //Boolean to identify if this node is dead or not
+      bool m_isDead;
 
       //This node's position info
       double m_xPosition;
